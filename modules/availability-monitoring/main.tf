@@ -30,8 +30,8 @@ resource "azurerm_application_insights_web_test" "webtest" {
   application_insights_id = azurerm_application_insights.appi.id
 
   kind      = "ping"
-  frequency = 300
-  timeout   = 60
+  frequency = 60
+  timeout   = 30
   enabled   = true
 
   # Classic internal geo-location codes
@@ -83,7 +83,7 @@ resource "azurerm_monitor_metric_alert" "availability_alert" {
     azurerm_application_insights.appi.id,
   ]
 
-  frequency   = "PT1M"
+  frequency   = "PT30S"
   window_size = "PT5M"
 
   application_insights_web_test_location_availability_criteria {

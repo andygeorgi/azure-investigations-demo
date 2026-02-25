@@ -34,7 +34,7 @@ Subscription
         └── Monitor Metric Alert (avail.)    (var.alert_name)
 ```
 
-The **Azure Monitor Workspace** acts as the subscription-level default, which unlocks the *Issues & Investigations* blade in the Azure Portal. An Application Insights component runs a classic ping web test every 5 minutes from two US geo-locations. When at least one location fails, a metric alert fires and sends an email notification.
+The **Azure Monitor Workspace** acts as the subscription-level default, which unlocks the *Issues & Investigations* blade in the Azure Portal. An Application Insights component runs a classic ping web test every **1 minute** from two US geo-locations. When at least one location fails, a metric alert (evaluated every 30 s) fires and sends an email notification.
 
 ---
 
@@ -70,7 +70,7 @@ The **Azure Monitor Workspace** acts as the subscription-level default, which un
 | 3 | **RBAC role assignment** *(optional)* | `amw-subscription-association` |
 | 4 | **Log Analytics Workspace** | `availability-monitoring` |
 | 5 | **Application Insights** (workspace-mode) | `availability-monitoring` |
-| 6 | **Classic ping web test** (5 min, 2 US regions) | `availability-monitoring` |
+| 6 | **Classic ping web test** (1 min, 2 US regions) | `availability-monitoring` |
 | 7 | **Monitor Action Group** (email) | `availability-monitoring` |
 | 8 | **Monitor Metric Alert** (≥ 1 location failed) | `availability-monitoring` |
 
@@ -157,7 +157,7 @@ After `terraform apply`, go to **Monitor → Issues (preview)** in the Azure Por
 
 ### 2 — Confirm availability data
 
-Open your Application Insights resource → **Investigate → Availability**. Within ~10 minutes the web test chart shows 100% availability from both geo-locations.
+Open your Application Insights resource → **Investigate → Availability**. Within ~2 minutes the web test chart shows 100% availability from both geo-locations.
 
 ![Availability chart showing 100% results from both geo-locations](assets/screenshots/step-05-availability-green.png)
 
@@ -169,7 +169,7 @@ Set `webtest_url` to an unreachable address in `terraform.tfvars`, then re-apply
 webtest_url = "https://this-does-not-exist.example.com"
 ```
 
-After 5–10 minutes the availability drops, the alert fires, and you receive an email notification.
+After 1–2 minutes the availability drops, the alert fires, and you receive an email notification.
 
 > **Note:** The **"Investigate >"** button in the notification email leads to an older experience — use **"View the alert in Azure Monitor >"** instead.
 
@@ -204,7 +204,7 @@ After 5–10 minutes the availability drops, the alert fires, and you receive an
 
 ### 5 — Restore and clean up
 
-Restore a valid URL in `terraform.tfvars` and re-apply. The metric alert **auto-resolves** after ~5 minutes. The **issue does not close automatically** — go to **Monitor → Issues (preview)**, open the issue, and click **"Mitigate issue"**.
+Restore a valid URL in `terraform.tfvars` and re-apply. The metric alert **auto-resolves** after ~1–2 minutes. The **issue does not close automatically** — go to **Monitor → Issues (preview)**, open the issue, and click **"Mitigate issue"**.
 
 To tear down all resources:
 
