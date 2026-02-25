@@ -1,0 +1,19 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is excluded from git via .gitignore.
+
+location = "westeurope"
+
+# Resource names — must be unique within your subscription/resource group
+resource_group_name = "amw-iidemo-rg"
+amw_name            = "amw-iidemo-amw"
+law_name            = "amw-iidemo-law"
+appi_name           = "amw-iidemo-appi"
+webtest_name        = "amw-iidemo-webtest"
+action_group_name   = "amw-iidemo-ag"
+alert_name          = "amw-iidemo-avail-alert"
+
+# Behaviour
+alert_email              = "you@example.com"
+webtest_url              = "https://your-app.example.com"
+assign_amw_role          = true
+amw_role_definition_name = "Monitoring Contributor"

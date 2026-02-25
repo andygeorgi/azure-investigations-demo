@@ -1,0 +1,28 @@
+# Terraform state — never commit
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Variable files may contain secrets — exclude by default
+*.tfvars
+*.tfvars.json
+# ...but allow the example file
+!terraform.tfvars.example
+
+# Terraform working directory
+.terraform/
+.terraform.lock.hcl
+
+# Override files (local developer use only)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Generated plan files
+*.tfplan
+
+# OS artefacts
+.DS_Store
+Thumbs.db
