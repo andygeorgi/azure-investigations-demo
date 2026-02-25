@@ -9,6 +9,26 @@ resource "azurerm_resource_group" "rg" {
 }
 
 # -----------------------------
+# Clean up auto-generated smart-detection alert rules
+# Azure creates a "Failure Anomalies" smart-detector rule automatically
+# when Application Insights is provisioned.  Terraform does not manage it,
+# so we delete any remaining alert rules in the RG before destroy.
+# -----------------------------
+resource "null_resource" "cleanup_smart_detection" {
+  depends_on = [module.availability]
+
+  triggers = {
+    resource_group_name = azurerm_resource_group.rg.name
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "for id in $(az monitor smart-detector alert-rule list --resource-group ${self.triggers.resource_group_name} --query \"[].id\" -o tsv 2>/dev/null); do echo \"Deleting: $id\"; az monitor smart-detector alert-rule delete --ids \"$id\" --yes 2>/dev/null || true; done"
+    interpreter = ["bash", "-c"]
+  }
+}
+
+# -----------------------------
 # Module 1: Azure Monitor Workspace + Subscription Association
 # Provisions the AMW, wires it to the subscription as the default workspace
 # (preview API via AzAPI), and optionally grants an RBAC role.
