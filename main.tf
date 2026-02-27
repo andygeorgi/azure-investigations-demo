@@ -1,11 +1,28 @@
 data "azurerm_client_config" "current" {}
 
+locals {
+  scenario_availability_url_failure = contains(var.enabled_scenarios, "availability-url-failure")
+  scenario_vm_connectivity_loss     = contains(var.enabled_scenarios, "vm-connectivity-loss")
+  scenario_appgw_backend_unhealthy  = contains(var.enabled_scenarios, "appgw-backend-unhealthy")
+}
+
 # -----------------------------
 # Resource Group
 # -----------------------------
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_group_name
   location = var.location
+}
+
+# -----------------------------
+# Shared Log Analytics Workspace (single environment for all scenarios)
+# -----------------------------
+resource "azurerm_log_analytics_workspace" "shared_law" {
+  name                = var.law_name
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
 }
 
 # -----------------------------
@@ -22,8 +39,8 @@ resource "null_resource" "cleanup_smart_detection" {
   }
 
   provisioner "local-exec" {
-    when    = destroy
-    command = "for id in $(az monitor smart-detector alert-rule list --resource-group ${self.triggers.resource_group_name} --query \"[].id\" -o tsv 2>/dev/null); do echo \"Deleting: $id\"; az monitor smart-detector alert-rule delete --ids \"$id\" --yes 2>/dev/null || true; done"
+    when        = destroy
+    command     = "for id in $(az monitor smart-detector alert-rule list --resource-group ${self.triggers.resource_group_name} --query \"[].id\" -o tsv 2>/dev/null); do echo \"Deleting: $id\"; az monitor smart-detector alert-rule delete --ids \"$id\" --yes 2>/dev/null || true; done"
     interpreter = ["bash", "-c"]
   }
 }
@@ -51,9 +68,10 @@ module "amw" {
 # an action group, and a metric availability alert.
 # -----------------------------
 module "availability" {
+  count  = local.scenario_availability_url_failure ? 1 : 0
   source = "./modules/availability-monitoring"
 
-  law_name            = var.law_name
+  law_id              = azurerm_log_analytics_workspace.shared_law.id
   appi_name           = var.appi_name
   webtest_name        = var.webtest_name
   action_group_name   = var.action_group_name
@@ -62,4 +80,31 @@ module "availability" {
   resource_group_name = azurerm_resource_group.rg.name
   webtest_url         = var.webtest_url
   alert_email         = var.alert_email
+}
+
+# -----------------------------
+# Module 3: VM Connectivity Loss Scenario
+# Provisions a Linux VM with Azure Monitor Agent and connectivity alerting.
+# A toggleable NSG rule can intentionally block outbound 443 to simulate
+# connectivity loss caused by network settings.
+# -----------------------------
+module "vm_connectivity" {
+  count  = local.scenario_vm_connectivity_loss ? 1 : 0
+  source = "./modules/vm-connectivity-monitoring"
+
+  law_id                          = azurerm_log_analytics_workspace.shared_law.id
+  vm_name                         = var.vm_name
+  vm_vnet_name                    = var.vm_vnet_name
+  vm_subnet_name                  = var.vm_subnet_name
+  vm_nsg_name                     = var.vm_nsg_name
+  vm_nic_name                     = var.vm_nic_name
+  vm_action_group_name            = var.vm_action_group_name
+  vm_alert_name                   = var.vm_alert_name
+  vm_dcr_name                     = var.vm_dcr_name
+  vm_size                         = var.vm_size
+  vm_admin_username               = var.vm_admin_username
+  vm_connectivity_block_outbound_443 = var.vm_connectivity_block_outbound_443
+  location                        = azurerm_resource_group.rg.location
+  resource_group_name             = azurerm_resource_group.rg.name
+  alert_email                     = var.alert_email
 }

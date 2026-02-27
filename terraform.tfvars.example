@@ -3,6 +3,13 @@
 
 location = "westeurope"
 
+# Scenario selection
+# Available scenarios:
+#   - availability-url-failure   (implemented, default)
+#   - vm-connectivity-loss       (implemented)
+#   - appgw-backend-unhealthy    (coming soon)
+enabled_scenarios = ["availability-url-failure"]
+
 # Resource names — must be unique within your subscription/resource group
 resource_group_name = "amw-iidemo-rg"
 amw_name            = "amw-iidemo-amw"
@@ -11,9 +18,20 @@ appi_name           = "amw-iidemo-appi"
 webtest_name        = "amw-iidemo-webtest"
 action_group_name   = "amw-iidemo-ag"
 alert_name          = "amw-iidemo-avail-alert"
+vm_name             = "amw-iidemo-vm"
+vm_vnet_name        = "amw-iidemo-vnet"
+vm_subnet_name      = "default"
+vm_nsg_name         = "amw-iidemo-vm-nsg"
+vm_nic_name         = "amw-iidemo-vm-nic"
+vm_action_group_name = "amw-iidemo-vm-ag"
+vm_alert_name       = "amw-iidemo-vm-connectivity-alert"
+vm_dcr_name         = "amw-iidemo-vm-dcr"
+vm_size             = "Standard_B2s"
+vm_admin_username   = "azureuser"
 
 # Behaviour
 alert_email              = "you@example.com"
 webtest_url              = "https://your-app.example.com"
+vm_connectivity_block_outbound_443 = false
 assign_amw_role          = true
 amw_role_definition_name = "Monitoring Contributor"

@@ -1,17 +1,16 @@
-# Azure Monitor Workspace – Issues & Investigations Demo
+# Azure Monitor Workspace — Issues & Investigations Demo
 
-A Terraform project that provisions a complete **Azure Monitor Workspace (AMW)** environment, wires it to a subscription as the default workspace, and demonstrates end-to-end **availability alerting** via Application Insights web tests. Designed as a self-contained demo for the *Issues & Investigations* feature (currently in preview).
+A Terraform project that provisions a complete **Azure Monitor Workspace (AMW)** environment, wires it to a subscription as the default workspace, and deploys one or more demo scenarios for **Issues & Investigations (preview)**. Each scenario creates a fault condition, triggers an alert, and walks through the full investigation and AI-assisted remediation flow.
 
 ---
 
 ## TL;DR
 
-- Time/cost: deploys in minutes; small, pay-as-you-go demo footprint (LAW + App Insights + alert + web test).
-- Run it now:
+Deploys in minutes. Small, pay-as-you-go footprint.
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
-# edit terraform.tfvars → set alert_email and webtest_url
+# edit terraform.tfvars → set enabled_scenarios, alert_email, and scenario-specific values
 terraform init && terraform apply
 ```
 
@@ -26,15 +25,26 @@ Subscription
     │   ├── Azure Monitor Workspace          (var.amw_name)
     │   ├── Subscription AMW association     (Microsoft.Monitor/settings/default)  [AzAPI]
     │   └── RBAC role assignment             (optional)
-    └── module: availability-monitoring
-        ├── Log Analytics Workspace          (var.law_name)
-        ├── Application Insights (workspace) (var.appi_name)
-        │   └── Web Test (classic ping)      (var.webtest_name)
-        ├── Monitor Action Group             (var.action_group_name)
-        └── Monitor Metric Alert (avail.)    (var.alert_name)
+    ├── Shared Log Analytics Workspace       (var.law_name)
+    └── scenario modules (selected by var.enabled_scenarios)
+        ├── availability-url-failure (implemented)
+        ├── vm-connectivity-loss (implemented)
+        └── appgw-backend-unhealthy (coming soon)
 ```
 
-The **Azure Monitor Workspace** acts as the subscription-level default, which unlocks the *Issues & Investigations* blade in the Azure Portal. An Application Insights component runs a classic ping web test every **5 minutes** from two US geo-locations (the minimum interval Azure allows). When at least one location fails, a metric alert (evaluated every 1 min) fires and sends an email notification.
+The **Azure Monitor Workspace** acts as the subscription-level default, which unlocks the **Issues & Investigations** blade in the Azure Portal.
+
+---
+
+## Scenarios
+
+Select scenarios with `enabled_scenarios` in `terraform.tfvars`. Each scenario deploys its own fault condition, alert and investigation workflow.
+
+| Scenario | Status | Description |
+|----------|--------|-------------|
+| [Availability URL Failure](scenarios/availability-url-failure/README.md) | Implemented (default) | Web test probes a URL; trigger by pointing at an invalid endpoint |
+| [VM Connectivity Loss](scenarios/vm-connectivity-loss/README.md) | Implemented | NSG deny rule blocks VM egress; Connection Monitor detects the failure |
+| [App Gateway Backend Unhealthy](scenarios/appgw-backend-unhealthy/README.md) | Planned | Application Gateway backend health degradation |
 
 ---
 
@@ -51,28 +61,56 @@ The **Azure Monitor Workspace** acts as the subscription-level default, which un
 ├── README.md
 ├── assets/
 │   └── screenshots/
+│       ├── availability-url-failure/
+│       ├── vm-connectivity-loss/
+│       └── appgw-backend-unhealthy/
+├── scenarios/
+│   ├── availability-url-failure/        # Scenario-specific docs
+│   ├── vm-connectivity-loss/            # Scenario-specific docs
+│   └── appgw-backend-unhealthy/         # Scenario-specific docs
 ├── tools/
 │   ├── install-prerequisites.ps1        # Windows prerequisite installer (winget)
 │   └── install-prerequisites.sh         # Linux / macOS prerequisite installer
 └── modules/
     ├── amw-subscription-association/    # AMW + preview API subscription wiring
-    └── availability-monitoring/         # LAW + APPI + Web Test + Alert stack
+    ├── availability-monitoring/         # LAW + APPI + Web Test + Alert stack
+    └── vm-connectivity-monitoring/      # VM + AMA + connectivity alert + remediation
 ```
 
 ---
 
 ## What gets deployed
 
-| # | Resource | Module |
-|---|----------|--------|
-| 1 | **Azure Monitor Workspace** | `amw-subscription-association` |
-| 2 | **Subscription → AMW association** (preview API) | `amw-subscription-association` |
-| 3 | **RBAC role assignment** *(optional)* | `amw-subscription-association` |
-| 4 | **Log Analytics Workspace** | `availability-monitoring` |
-| 5 | **Application Insights** (workspace-mode) | `availability-monitoring` |
-| 6 | **Classic ping web test** (5 min, 2 US regions) | `availability-monitoring` |
-| 7 | **Monitor Action Group** (email) | `availability-monitoring` |
-| 8 | **Monitor Metric Alert** (≥ 1 location failed) | `availability-monitoring` |
+### Baseline (always)
+
+| # | Resource | Purpose |
+|---|----------|---------|
+| 1 | Azure Monitor Workspace | Subscription-level default, unlocks Issues & Investigations |
+| 2 | Subscription → AMW association (preview API) | Wires the AMW to the subscription via AzAPI |
+| 3 | RBAC role assignment *(optional)* | Grants the deploying principal access to the AMW |
+| 4 | Shared Log Analytics Workspace | Central log destination for all scenarios |
+
+Scenario-specific resources are documented in each scenario README under `scenarios/`.
+
+### Availability URL Failure
+
+| # | Resource | Purpose |
+|---|----------|---------|
+| 5 | Application Insights (workspace-mode) | Linked to shared LAW |
+| 6 | Classic ping web test | Probes target URL every 5 min from 2 US regions |
+| 7 | Action Group (email) | Sends alert notification |
+| 8 | Metric Alert (≥ 1 location failed) | Fires when availability drops |
+
+### VM Connectivity Loss
+
+| # | Resource | Purpose |
+|---|----------|---------|
+| 9  | Linux VM + VNet + Subnet + NSG | Demo infrastructure |
+| 10 | Azure Monitor Agent + Network Watcher Agent | VM extensions for monitoring and connection testing |
+| 11 | Data Collection Rule + association | Routes Heartbeat data to shared LAW |
+| 12 | Connection Monitor | Tests TCP/443 to Azure Monitor endpoint every 60s |
+| 13 | Metric Alert (`ChecksFailedPercent > 0`) | Fires when connectivity checks fail |
+| 14 | Action Group (email) | Sends alert notification |
 
 ---
 
@@ -104,6 +142,7 @@ bash tools/install-prerequisites.sh
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
+| `enabled_scenarios` | `list(string)` | `['availability-url-failure']` | Scenarios to deploy. Available: `availability-url-failure`, `vm-connectivity-loss`, `appgw-backend-unhealthy` (coming soon) |
 | `alert_email` | `string` | `replace-me@example.com` | Notification email address |
 | `webtest_url` | `string` | `https://www.microsoft.com` | URL probed by the web test |
 
@@ -119,6 +158,17 @@ bash tools/install-prerequisites.sh
 | `webtest_name` | `string` | `amw-iidemo-webtest` | Web test name |
 | `action_group_name` | `string` | `amw-iidemo-ag` | Action Group name |
 | `alert_name` | `string` | `amw-iidemo-avail-alert` | Metric alert name |
+| `vm_name` | `string` | `amw-iidemo-vm` | Demo VM name |
+| `vm_vnet_name` | `string` | `amw-iidemo-vnet` | VNet name for VM scenario |
+| `vm_subnet_name` | `string` | `default` | Subnet name for VM scenario |
+| `vm_nsg_name` | `string` | `amw-iidemo-vm-nsg` | NSG name for VM scenario |
+| `vm_nic_name` | `string` | `amw-iidemo-vm-nic` | NIC name for VM scenario |
+| `vm_action_group_name` | `string` | `amw-iidemo-vm-ag` | Action Group name for VM connectivity alert |
+| `vm_alert_name` | `string` | `amw-iidemo-vm-connectivity-alert` | Metric alert name for connectivity loss |
+| `vm_dcr_name` | `string` | `amw-iidemo-vm-dcr` | Data Collection Rule name |
+| `vm_size` | `string` | `Standard_B2s` | VM size |
+| `vm_admin_username` | `string` | `azureuser` | Admin username for VM connectivity scenario VM |
+| `vm_connectivity_block_outbound_443` | `bool` | `false` | Toggle NSG misconfiguration to trigger connectivity loss |
 | `assign_amw_role` | `bool` | `true` | Assign an RBAC role on the AMW to the deploying principal |
 | `amw_role_definition_name` | `string` | `Monitoring Contributor` | Role to assign (`Contributor`, `Monitoring Contributor`, or `Issue Contributor`) |
 
@@ -129,90 +179,47 @@ bash tools/install-prerequisites.sh
 | Name | Description |
 |------|-------------|
 | `amw_id` | Azure Monitor Workspace resource ID |
+| `selected_scenarios` | Scenarios requested for deployment |
 | `amw_subscription_association_id` | Subscription-level AMW association resource ID |
 | `application_insights_id` | Application Insights resource ID |
 | `webtest_id` | Web test resource ID |
 | `availability_alert_id` | Metric alert rule resource ID |
+| `vm_id` | Demo VM resource ID for connectivity scenario |
+| `shared_law_id` | Shared Log Analytics Workspace resource ID |
+| `vm_connectivity_alert_id` | Connectivity metric alert rule resource ID |
+| `vm_action_group_id` | Connectivity scenario Action Group resource ID |
 
 ---
 
 ## Quick Start
 
-Use the [TL;DR](#tldr) commands after setting the minimal `terraform.tfvars`:
+Copy the example, set the minimal values, and deploy:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
 
 ```hcl
-alert_email = "you@example.com"
-webtest_url = "https://your-app.example.com"
+enabled_scenarios = ["availability-url-failure"]
+alert_email       = "you@example.com"
+webtest_url       = "https://your-app.example.com"
 ```
+
+```bash
+terraform init && terraform apply
+```
+
+Then follow the step-by-step walkthrough for your chosen scenario.
 
 ---
 
-## Demo Walkthrough
+## Demo Walkthroughs
 
-### 1 — Verify the AMW association
+Each scenario README contains a full step-by-step walkthrough — from deployment through fault injection, investigation, AI-assisted diagnosis, remediation, and recovery.
 
-After `terraform apply`, go to **Monitor → Issues (preview)** in the Azure Portal. The blade opening confirms the subscription-level AMW association is active. A fresh deployment shows an empty issues list.
-
-![Issues dashboard — empty after fresh deployment](assets/screenshots/step-04-issues-empty.png)
-
-### 2 — Confirm availability data
-
-Open your Application Insights resource → **Investigate → Availability**. Within ~5 minutes the web test chart shows 100% availability from both geo-locations.
-
-![Availability chart showing 100% results from both geo-locations](assets/screenshots/step-05-availability-green.png)
-
-### 3 — Trigger a failure
-
-Set `webtest_url` to an unreachable address in `terraform.tfvars`, then re-apply:
-
-```hcl
-webtest_url = "https://this-does-not-exist.example.com"
-```
-
-After ~5 minutes the availability drops, the alert fires, and you receive an email notification.
-
-> **Note:** The **"Investigate >"** button in the notification email leads to an older experience — use **"View the alert in Azure Monitor >"** instead.
-
-![Availability chart showing a drop after pointing to an invalid URL](assets/screenshots/step-06-availability-failed.png)
-
-### 4 — Create an investigation
-
-1. Click **"View the alert in Azure Monitor >"** in the notification email to open the fired alert detail
-2. Click **"Investigate (preview)"** in the top-right corner of the panel
-
-![Fired alert detail panel with Investigate (preview) button](assets/screenshots/step-07a-alert-detail.png)
-
-3. The **Observability Agent** starts — click **"Start investigation"** to let it analyse correlated signals
-4. The agent returns findings and auto-names the issue (e.g. *"Web test DNS resolution failure"*)
-5. Explore the suggested follow-up prompts or type your own in the **"I want to..."** box
-
-> **Note:** The agent is scoped to the historical window around the alert — it does not reflect the current live state.
-
-![Observability Agent chat — building resource context and awaiting Start investigation](assets/screenshots/step-07b-investigation-chat.png)
-
-6. The investigation is **temporary by default** — promote it to a tracked issue via the banner at the top
-
-![Issue overview — background summary and synthetic check timeline](assets/screenshots/step-07c-issue-overview.png)
-
-7. The **Investigation** tab shows agent findings, root cause, and suggested next steps
-
-![Issue investigation tab — agent findings and supporting charts](assets/screenshots/step-07d-issue-investigation.png)
-
-8. The issue is now also visible in **Monitor → Issues (preview)**
-
-![Issues list with the new issue](assets/screenshots/step-07e-issues-list.png)
-
-### 5 — Restore and clean up
-
-Restore a valid URL in `terraform.tfvars` and re-apply. The metric alert **auto-resolves** after ~1–2 minutes. The **issue does not close automatically** — go to **Monitor → Issues (preview)**, open the issue, and click **"Mitigate issue"**.
-
-To tear down all resources:
-
-```bash
-terraform destroy
-```
-
-> **Warning:** `terraform destroy` deletes the AMW and **all investigation history stored inside it is permanently lost**. Export any findings before running this.
+- [Availability URL Failure](scenarios/availability-url-failure/README.md)
+- [VM Connectivity Loss](scenarios/vm-connectivity-loss/README.md)
+- [App Gateway Backend Unhealthy](scenarios/appgw-backend-unhealthy/README.md) *(planned)*
 
 ---
 
@@ -220,4 +227,5 @@ terraform destroy
 
 - The subscription AMW association uses the **preview API `2025-06-03-preview`** via `azapi_resource` (`Microsoft.Monitor/settings`), which is not yet supported by the `azurerm` provider.
 - Web test geo-locations use classic internal codes (`us-tx-sn1-azr`, `us-il-ch1-azr`). Update `modules/availability-monitoring/main.tf` to change regions.
+- Remediation across all scenarios follows a **human-in-the-loop** pattern: the Observability Agent in Issues & Investigations diagnoses the root cause and recommends a fix; the operator approves and executes it.
 - A destroy-time provisioner calls `az rest --method DELETE` to remove the subscription association before Terraform deletes the AMW, preventing orphaned ARM state.

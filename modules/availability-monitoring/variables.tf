@@ -1,6 +1,6 @@
-variable "law_name" {
+variable "law_id" {
   type        = string
-  description = "Name of the Log Analytics Workspace."
+  description = "Resource ID of the shared Log Analytics Workspace."
 }
 
 variable "appi_name" {
