@@ -32,7 +32,7 @@ resource "azurerm_log_analytics_workspace" "shared_law" {
 # so we delete any remaining alert rules in the RG before destroy.
 # -----------------------------
 resource "null_resource" "cleanup_smart_detection" {
-  depends_on = [module.availability]
+  depends_on = [module.availability, module.appgw_backend]
 
   triggers = {
     resource_group_name = azurerm_resource_group.rg.name
@@ -107,4 +107,33 @@ module "vm_connectivity" {
   location                        = azurerm_resource_group.rg.location
   resource_group_name             = azurerm_resource_group.rg.name
   alert_email                     = var.alert_email
+}
+
+# -----------------------------
+# Module 4: App Gateway Backend Unhealthy Scenario
+# Provisions an Application Gateway with a backend VM, health probe,
+# and an alert on unhealthy backends.  A toggleable NSG rule blocks
+# health-probe traffic to simulate backend health degradation.
+# -----------------------------
+module "appgw_backend" {
+  count  = local.scenario_appgw_backend_unhealthy ? 1 : 0
+  source = "./modules/appgw-backend-monitoring"
+
+  law_id                           = azurerm_log_analytics_workspace.shared_law.id
+  appgw_name                       = var.appgw_name
+  appgw_vnet_name                  = var.appgw_vnet_name
+  appgw_subnet_name                = var.appgw_subnet_name
+  appgw_backend_subnet_name        = var.appgw_backend_subnet_name
+  appgw_nsg_name                   = var.appgw_nsg_name
+  appgw_pip_name                   = var.appgw_pip_name
+  appgw_backend_vm_name            = var.appgw_backend_vm_name
+  appgw_backend_vm_nic_name        = var.appgw_backend_vm_nic_name
+  appgw_action_group_name          = var.appgw_action_group_name
+  appgw_alert_name                 = var.appgw_alert_name
+  appgw_vm_size                    = var.appgw_vm_size
+  appgw_vm_admin_username          = var.appgw_vm_admin_username
+  appgw_block_backend_health_probe = var.appgw_block_backend_health_probe
+  location                         = azurerm_resource_group.rg.location
+  resource_group_name              = azurerm_resource_group.rg.name
+  alert_email                      = var.alert_email
 }

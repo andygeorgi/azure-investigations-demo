@@ -41,3 +41,19 @@ output "vm_connectivity_alert_id" {
 output "vm_action_group_id" {
   value = try(module.vm_connectivity[0].action_group_id, null)
 }
+
+output "appgw_id" {
+  value = try(module.appgw_backend[0].appgw_id, null)
+}
+
+output "appgw_backend_vm_id" {
+  value = try(module.appgw_backend[0].appgw_backend_vm_id, null)
+}
+
+output "appgw_health_alert_id" {
+  value = try(module.appgw_backend[0].appgw_health_alert_id, null)
+}
+
+output "appgw_action_group_id" {
+  value = try(module.appgw_backend[0].appgw_action_group_id, null)
+}

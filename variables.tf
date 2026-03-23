@@ -6,7 +6,7 @@ variable "location" {
 
 variable "enabled_scenarios" {
   type        = list(string)
-  description = "Scenarios to deploy. Supported values: availability-url-failure, vm-connectivity-loss, appgw-backend-unhealthy (coming soon)."
+  description = "Scenarios to deploy. Supported values: availability-url-failure, vm-connectivity-loss, appgw-backend-unhealthy."
   default     = ["availability-url-failure"]
 
   validation {
@@ -144,6 +144,87 @@ variable "webtest_url" {
 variable "vm_connectivity_block_outbound_443" {
   type        = bool
   description = "When true, applies an NSG rule that blocks VM outbound TCP 443 to simulate connectivity loss caused by network settings."
+  default     = false
+}
+
+# -----------------------------
+# App Gateway Backend Unhealthy scenario
+# -----------------------------
+variable "appgw_name" {
+  type        = string
+  description = "Name of the Application Gateway."
+  default     = "amw-iidemo-appgw"
+}
+
+variable "appgw_vnet_name" {
+  type        = string
+  description = "Name of the VNet hosting the Application Gateway and backend."
+  default     = "amw-iidemo-appgw-vnet"
+}
+
+variable "appgw_subnet_name" {
+  type        = string
+  description = "Name of the dedicated Application Gateway subnet."
+  default     = "appgw"
+}
+
+variable "appgw_backend_subnet_name" {
+  type        = string
+  description = "Name of the subnet hosting the App Gateway backend VM."
+  default     = "backend"
+}
+
+variable "appgw_nsg_name" {
+  type        = string
+  description = "Name of the NSG attached to the App Gateway backend subnet."
+  default     = "amw-iidemo-appgw-nsg"
+}
+
+variable "appgw_pip_name" {
+  type        = string
+  description = "Name of the public IP for the Application Gateway."
+  default     = "amw-iidemo-appgw-pip"
+}
+
+variable "appgw_backend_vm_name" {
+  type        = string
+  description = "Name of the backend VM for the App Gateway scenario."
+  default     = "amw-iidemo-appgw-vm"
+}
+
+variable "appgw_backend_vm_nic_name" {
+  type        = string
+  description = "Name of the NIC for the App Gateway backend VM."
+  default     = "amw-iidemo-appgw-vm-nic"
+}
+
+variable "appgw_action_group_name" {
+  type        = string
+  description = "Name of the Action Group for App Gateway backend health alert."
+  default     = "amw-iidemo-appgw-ag"
+}
+
+variable "appgw_alert_name" {
+  type        = string
+  description = "Name of the App Gateway backend health metric alert."
+  default     = "amw-iidemo-appgw-health-alert"
+}
+
+variable "appgw_vm_size" {
+  type        = string
+  description = "VM size for the App Gateway backend VM."
+  default     = "Standard_B2s"
+}
+
+variable "appgw_vm_admin_username" {
+  type        = string
+  description = "Admin username for the App Gateway backend VM."
+  default     = "azureuser"
+}
+
+variable "appgw_block_backend_health_probe" {
+  type        = bool
+  description = "When true, applies an NSG rule blocking inbound TCP/80 from the App Gateway subnet to simulate backend health degradation."
   default     = false
 }
 

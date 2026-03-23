@@ -29,7 +29,7 @@ Subscription
     └── scenario modules (selected by var.enabled_scenarios)
         ├── availability-url-failure (implemented)
         ├── vm-connectivity-loss (implemented)
-        └── appgw-backend-unhealthy (coming soon)
+        └── appgw-backend-unhealthy (implemented)
 ```
 
 The **Azure Monitor Workspace** acts as the subscription-level default, which unlocks the **Issues & Investigations** blade in the Azure Portal.
@@ -44,7 +44,7 @@ Select scenarios with `enabled_scenarios` in `terraform.tfvars`. Each scenario d
 |----------|--------|-------------|
 | [Availability URL Failure](scenarios/availability-url-failure/README.md) | Implemented (default) | Web test probes a URL; trigger by pointing at an invalid endpoint |
 | [VM Connectivity Loss](scenarios/vm-connectivity-loss/README.md) | Implemented | NSG deny rule blocks VM egress; Connection Monitor detects the failure |
-| [App Gateway Backend Unhealthy](scenarios/appgw-backend-unhealthy/README.md) | Planned | Application Gateway backend health degradation |
+| [App Gateway Backend Unhealthy](scenarios/appgw-backend-unhealthy/README.md) | Implemented | Application Gateway backend health degradation via NSG misconfiguration |
 
 ---
 
@@ -74,7 +74,8 @@ Select scenarios with `enabled_scenarios` in `terraform.tfvars`. Each scenario d
 └── modules/
     ├── amw-subscription-association/    # AMW + preview API subscription wiring
     ├── availability-monitoring/         # LAW + APPI + Web Test + Alert stack
-    └── vm-connectivity-monitoring/      # VM + AMA + connectivity alert + remediation
+    ├── vm-connectivity-monitoring/      # VM + AMA + connectivity alert + remediation
+    └── appgw-backend-monitoring/        # App Gateway + backend VM + health alert
 ```
 
 ---
@@ -112,6 +113,18 @@ Scenario-specific resources are documented in each scenario README under `scenar
 | 13 | Metric Alert (`ChecksFailedPercent > 0`) | Fires when connectivity checks fail |
 | 14 | Action Group (email) | Sends alert notification |
 
+### App Gateway Backend Unhealthy
+
+| # | Resource | Purpose |
+|---|----------|---------|
+| 15 | VNet + App Gateway subnet + Backend subnet | Network foundation with dedicated subnets |
+| 16 | NSG (backend subnet) | Controls inbound traffic to backend VM |
+| 17 | Public IP (Standard, static) | Frontend IP for the Application Gateway |
+| 18 | Linux VM + NIC | Backend web server (Python 3 HTTP server via cloud-init) |
+| 19 | Application Gateway v2 (Standard_v2) | Ingress with backend pool, health probe, listener and routing rule |
+| 20 | Metric Alert (`UnhealthyHostCount > 0`) | Fires when backend hosts are unhealthy |
+| 21 | Action Group (email) | Sends alert notification |
+
 ---
 
 ## Prerequisites
@@ -142,7 +155,7 @@ bash tools/install-prerequisites.sh
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `enabled_scenarios` | `list(string)` | `['availability-url-failure']` | Scenarios to deploy. Available: `availability-url-failure`, `vm-connectivity-loss`, `appgw-backend-unhealthy` (coming soon) |
+| `enabled_scenarios` | `list(string)` | `['availability-url-failure']` | Scenarios to deploy. Available: `availability-url-failure`, `vm-connectivity-loss`, `appgw-backend-unhealthy` |
 | `alert_email` | `string` | `replace-me@example.com` | Notification email address |
 | `webtest_url` | `string` | `https://www.microsoft.com` | URL probed by the web test |
 
@@ -169,6 +182,19 @@ bash tools/install-prerequisites.sh
 | `vm_size` | `string` | `Standard_B2s` | VM size |
 | `vm_admin_username` | `string` | `azureuser` | Admin username for VM connectivity scenario VM |
 | `vm_connectivity_block_outbound_443` | `bool` | `false` | Toggle NSG misconfiguration to trigger connectivity loss |
+| `appgw_name` | `string` | `amw-iidemo-appgw` | Application Gateway name |
+| `appgw_vnet_name` | `string` | `amw-iidemo-appgw-vnet` | VNet name for App Gateway scenario |
+| `appgw_subnet_name` | `string` | `appgw` | Dedicated App Gateway subnet name |
+| `appgw_backend_subnet_name` | `string` | `backend` | Backend subnet name |
+| `appgw_nsg_name` | `string` | `amw-iidemo-appgw-nsg` | NSG name for App Gateway backend subnet |
+| `appgw_pip_name` | `string` | `amw-iidemo-appgw-pip` | Public IP name for App Gateway |
+| `appgw_backend_vm_name` | `string` | `amw-iidemo-appgw-vm` | Backend VM name |
+| `appgw_backend_vm_nic_name` | `string` | `amw-iidemo-appgw-vm-nic` | Backend VM NIC name |
+| `appgw_action_group_name` | `string` | `amw-iidemo-appgw-ag` | Action Group name for App Gateway alert |
+| `appgw_alert_name` | `string` | `amw-iidemo-appgw-health-alert` | Metric alert name for backend health |
+| `appgw_vm_size` | `string` | `Standard_B2s` | Backend VM size |
+| `appgw_vm_admin_username` | `string` | `azureuser` | Admin username for App Gateway backend VM |
+| `appgw_block_backend_health_probe` | `bool` | `false` | Toggle NSG misconfiguration to block health-probe traffic |
 | `assign_amw_role` | `bool` | `true` | Assign an RBAC role on the AMW to the deploying principal |
 | `amw_role_definition_name` | `string` | `Monitoring Contributor` | Role to assign (`Contributor`, `Monitoring Contributor`, or `Issue Contributor`) |
 
@@ -188,6 +214,10 @@ bash tools/install-prerequisites.sh
 | `shared_law_id` | Shared Log Analytics Workspace resource ID |
 | `vm_connectivity_alert_id` | Connectivity metric alert rule resource ID |
 | `vm_action_group_id` | Connectivity scenario Action Group resource ID |
+| `appgw_id` | Application Gateway resource ID |
+| `appgw_backend_vm_id` | Backend VM resource ID for App Gateway scenario |
+| `appgw_health_alert_id` | Backend health metric alert rule resource ID |
+| `appgw_action_group_id` | App Gateway scenario Action Group resource ID |
 
 ---
 
@@ -219,7 +249,7 @@ Each scenario README contains a full step-by-step walkthrough — from deploymen
 
 - [Availability URL Failure](scenarios/availability-url-failure/README.md)
 - [VM Connectivity Loss](scenarios/vm-connectivity-loss/README.md)
-- [App Gateway Backend Unhealthy](scenarios/appgw-backend-unhealthy/README.md) *(planned)*
+- [App Gateway Backend Unhealthy](scenarios/appgw-backend-unhealthy/README.md)
 
 ---
 
