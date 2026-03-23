@@ -18,6 +18,13 @@ resource "azurerm_subnet" "appgw_subnet" {
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.appgw_vnet.name
   address_prefixes     = ["10.50.0.0/24"]
+
+  delegation {
+    name = "appgw-delegation"
+    service_delegation {
+      name = "Microsoft.Network/applicationGateways"
+    }
+  }
 }
 
 resource "azurerm_subnet" "backend_subnet" {
