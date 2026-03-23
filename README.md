@@ -163,37 +163,11 @@ bash tools/install-prerequisites.sh
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
+| `name_prefix` | `string` | `amw-iidemo` | Prefix for all resource names (e.g. `<prefix>-rg`, `<prefix>-appgw`). Change to deploy multiple instances side by side |
 | `location` | `string` | `westeurope` | Azure region for all resources |
-| `resource_group_name` | `string` | `amw-iidemo-rg` | Resource group name |
-| `amw_name` | `string` | `amw-iidemo-amw` | Azure Monitor Workspace name |
-| `law_name` | `string` | `amw-iidemo-law` | Log Analytics Workspace name |
-| `appi_name` | `string` | `amw-iidemo-appi` | Application Insights name |
-| `webtest_name` | `string` | `amw-iidemo-webtest` | Web test name |
-| `action_group_name` | `string` | `amw-iidemo-ag` | Action Group name |
-| `alert_name` | `string` | `amw-iidemo-avail-alert` | Metric alert name |
-| `vm_name` | `string` | `amw-iidemo-vm` | Demo VM name |
-| `vm_vnet_name` | `string` | `amw-iidemo-vnet` | VNet name for VM scenario |
-| `vm_subnet_name` | `string` | `default` | Subnet name for VM scenario |
-| `vm_nsg_name` | `string` | `amw-iidemo-vm-nsg` | NSG name for VM scenario |
-| `vm_nic_name` | `string` | `amw-iidemo-vm-nic` | NIC name for VM scenario |
-| `vm_action_group_name` | `string` | `amw-iidemo-vm-ag` | Action Group name for VM connectivity alert |
-| `vm_alert_name` | `string` | `amw-iidemo-vm-connectivity-alert` | Metric alert name for connectivity loss |
-| `vm_dcr_name` | `string` | `amw-iidemo-vm-dcr` | Data Collection Rule name |
-| `vm_size` | `string` | `Standard_B2s` | VM size |
-| `vm_admin_username` | `string` | `azureuser` | Admin username for VM connectivity scenario VM |
+| `vm_size` | `string` | `Standard_B2s` | VM size for demo VMs (used by vm-connectivity-loss and appgw-backend-unhealthy) |
+| `vm_admin_username` | `string` | `azureuser` | Admin username for demo VMs |
 | `vm_connectivity_block_outbound_443` | `bool` | `false` | Toggle NSG misconfiguration to trigger connectivity loss |
-| `appgw_name` | `string` | `amw-iidemo-appgw` | Application Gateway name |
-| `appgw_vnet_name` | `string` | `amw-iidemo-appgw-vnet` | VNet name for App Gateway scenario |
-| `appgw_subnet_name` | `string` | `appgw` | Dedicated App Gateway subnet name |
-| `appgw_backend_subnet_name` | `string` | `backend` | Backend subnet name |
-| `appgw_nsg_name` | `string` | `amw-iidemo-appgw-nsg` | NSG name for App Gateway backend subnet |
-| `appgw_pip_name` | `string` | `amw-iidemo-appgw-pip` | Public IP name for App Gateway |
-| `appgw_backend_vm_name` | `string` | `amw-iidemo-appgw-vm` | Backend VM name |
-| `appgw_backend_vm_nic_name` | `string` | `amw-iidemo-appgw-vm-nic` | Backend VM NIC name |
-| `appgw_action_group_name` | `string` | `amw-iidemo-appgw-ag` | Action Group name for App Gateway alert |
-| `appgw_alert_name` | `string` | `amw-iidemo-appgw-health-alert` | Metric alert name for backend health |
-| `appgw_vm_size` | `string` | `Standard_B2s` | Backend VM size |
-| `appgw_vm_admin_username` | `string` | `azureuser` | Admin username for App Gateway backend VM |
 | `appgw_block_backend_health_probe` | `bool` | `false` | Toggle NSG misconfiguration to block health-probe traffic |
 | `assign_amw_role` | `bool` | `true` | Assign an RBAC role on the AMW to the deploying principal |
 | `amw_role_definition_name` | `string` | `Monitoring Contributor` | Role to assign (`Contributor`, `Monitoring Contributor`, or `Issue Contributor`) |

@@ -1,7 +1,12 @@
 # Copy this file to terraform.tfvars and fill in your values.
 # terraform.tfvars is excluded from git via .gitignore.
+#
+# All resource names are derived from name_prefix (default: "amw-iidemo").
+# Change the prefix to deploy multiple instances side by side.
+# See variables.tf for full list of available options.
 
-location = "westeurope"
+# name_prefix = "amw-iidemo"
+# location    = "westeurope"
 
 # Scenario selection
 # Available scenarios:
@@ -10,41 +15,12 @@ location = "westeurope"
 #   - appgw-backend-unhealthy    (implemented)
 enabled_scenarios = ["availability-url-failure"]
 
-# Resource names — must be unique within your subscription/resource group
-resource_group_name = "amw-iidemo-rg"
-amw_name            = "amw-iidemo-amw"
-law_name            = "amw-iidemo-law"
-appi_name           = "amw-iidemo-appi"
-webtest_name        = "amw-iidemo-webtest"
-action_group_name   = "amw-iidemo-ag"
-alert_name          = "amw-iidemo-avail-alert"
-vm_name             = "amw-iidemo-vm"
-vm_vnet_name        = "amw-iidemo-vnet"
-vm_subnet_name      = "default"
-vm_nsg_name         = "amw-iidemo-vm-nsg"
-vm_nic_name         = "amw-iidemo-vm-nic"
-vm_action_group_name = "amw-iidemo-vm-ag"
-vm_alert_name       = "amw-iidemo-vm-connectivity-alert"
-vm_dcr_name         = "amw-iidemo-vm-dcr"
-vm_size             = "Standard_B2s"
-vm_admin_username   = "azureuser"
+# Notification target
+alert_email = "you@example.com"
 
-# Behaviour
-alert_email              = "you@example.com"
-webtest_url              = "https://your-app.example.com"
+# Availability URL Failure scenario — URL to probe
+webtest_url = "https://your-app.example.com"
+
+# Incident triggers — toggle to true to simulate incidents
 vm_connectivity_block_outbound_443 = false
-appgw_name                       = "amw-iidemo-appgw"
-appgw_vnet_name                  = "amw-iidemo-appgw-vnet"
-appgw_subnet_name                = "appgw"
-appgw_backend_subnet_name        = "backend"
-appgw_nsg_name                   = "amw-iidemo-appgw-nsg"
-appgw_pip_name                   = "amw-iidemo-appgw-pip"
-appgw_backend_vm_name            = "amw-iidemo-appgw-vm"
-appgw_backend_vm_nic_name        = "amw-iidemo-appgw-vm-nic"
-appgw_action_group_name          = "amw-iidemo-appgw-ag"
-appgw_alert_name                 = "amw-iidemo-appgw-health-alert"
-appgw_vm_size                    = "Standard_B2s"
-appgw_vm_admin_username          = "azureuser"
-appgw_block_backend_health_probe = false
-assign_amw_role          = true
-amw_role_definition_name = "Monitoring Contributor"
+appgw_block_backend_health_probe   = false

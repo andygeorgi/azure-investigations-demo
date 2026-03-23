@@ -1,16 +1,48 @@
 data "azurerm_client_config" "current" {}
 
 locals {
+  # Scenario flags
   scenario_availability_url_failure = contains(var.enabled_scenarios, "availability-url-failure")
   scenario_vm_connectivity_loss     = contains(var.enabled_scenarios, "vm-connectivity-loss")
   scenario_appgw_backend_unhealthy  = contains(var.enabled_scenarios, "appgw-backend-unhealthy")
+
+  # ---- Resource names derived from var.name_prefix ----
+  # Baseline
+  resource_group_name = "${var.name_prefix}-rg"
+  amw_name            = "${var.name_prefix}-amw"
+  law_name            = "${var.name_prefix}-law"
+
+  # Availability URL Failure scenario
+  appi_name               = "${var.name_prefix}-appi"
+  webtest_name            = "${var.name_prefix}-webtest"
+  avail_action_group_name = "${var.name_prefix}-ag"
+  avail_alert_name        = "${var.name_prefix}-avail-alert"
+
+  # VM Connectivity Loss scenario
+  vm_name              = "${var.name_prefix}-vm"
+  vm_vnet_name         = "${var.name_prefix}-vnet"
+  vm_nsg_name          = "${var.name_prefix}-vm-nsg"
+  vm_nic_name          = "${var.name_prefix}-vm-nic"
+  vm_action_group_name = "${var.name_prefix}-vm-ag"
+  vm_alert_name        = "${var.name_prefix}-vm-connectivity-alert"
+  vm_dcr_name          = "${var.name_prefix}-vm-dcr"
+
+  # App Gateway Backend Unhealthy scenario
+  appgw_name                = "${var.name_prefix}-appgw"
+  appgw_vnet_name           = "${var.name_prefix}-appgw-vnet"
+  appgw_nsg_name            = "${var.name_prefix}-appgw-nsg"
+  appgw_pip_name            = "${var.name_prefix}-appgw-pip"
+  appgw_backend_vm_name     = "${var.name_prefix}-appgw-vm"
+  appgw_backend_vm_nic_name = "${var.name_prefix}-appgw-vm-nic"
+  appgw_action_group_name   = "${var.name_prefix}-appgw-ag"
+  appgw_alert_name          = "${var.name_prefix}-appgw-health-alert"
 }
 
 # -----------------------------
 # Resource Group
 # -----------------------------
 resource "azurerm_resource_group" "rg" {
-  name     = var.resource_group_name
+  name     = local.resource_group_name
   location = var.location
 }
 
@@ -18,7 +50,7 @@ resource "azurerm_resource_group" "rg" {
 # Shared Log Analytics Workspace (single environment for all scenarios)
 # -----------------------------
 resource "azurerm_log_analytics_workspace" "shared_law" {
-  name                = var.law_name
+  name                = local.law_name
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   sku                 = "PerGB2018"
@@ -53,7 +85,7 @@ resource "null_resource" "cleanup_smart_detection" {
 module "amw" {
   source = "./modules/amw-subscription-association"
 
-  amw_name             = var.amw_name
+  amw_name             = local.amw_name
   location             = azurerm_resource_group.rg.location
   resource_group_name  = azurerm_resource_group.rg.name
   subscription_id      = data.azurerm_client_config.current.subscription_id
@@ -72,10 +104,10 @@ module "availability" {
   source = "./modules/availability-monitoring"
 
   law_id              = azurerm_log_analytics_workspace.shared_law.id
-  appi_name           = var.appi_name
-  webtest_name        = var.webtest_name
-  action_group_name   = var.action_group_name
-  alert_name          = var.alert_name
+  appi_name           = local.appi_name
+  webtest_name        = local.webtest_name
+  action_group_name   = local.avail_action_group_name
+  alert_name          = local.avail_alert_name
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   webtest_url         = var.webtest_url
@@ -92,21 +124,21 @@ module "vm_connectivity" {
   count  = local.scenario_vm_connectivity_loss ? 1 : 0
   source = "./modules/vm-connectivity-monitoring"
 
-  law_id                          = azurerm_log_analytics_workspace.shared_law.id
-  vm_name                         = var.vm_name
-  vm_vnet_name                    = var.vm_vnet_name
-  vm_subnet_name                  = var.vm_subnet_name
-  vm_nsg_name                     = var.vm_nsg_name
-  vm_nic_name                     = var.vm_nic_name
-  vm_action_group_name            = var.vm_action_group_name
-  vm_alert_name                   = var.vm_alert_name
-  vm_dcr_name                     = var.vm_dcr_name
-  vm_size                         = var.vm_size
-  vm_admin_username               = var.vm_admin_username
+  law_id                             = azurerm_log_analytics_workspace.shared_law.id
+  vm_name                            = local.vm_name
+  vm_vnet_name                       = local.vm_vnet_name
+  vm_subnet_name                     = "default"
+  vm_nsg_name                        = local.vm_nsg_name
+  vm_nic_name                        = local.vm_nic_name
+  vm_action_group_name               = local.vm_action_group_name
+  vm_alert_name                      = local.vm_alert_name
+  vm_dcr_name                        = local.vm_dcr_name
+  vm_size                            = var.vm_size
+  vm_admin_username                   = var.vm_admin_username
   vm_connectivity_block_outbound_443 = var.vm_connectivity_block_outbound_443
-  location                        = azurerm_resource_group.rg.location
-  resource_group_name             = azurerm_resource_group.rg.name
-  alert_email                     = var.alert_email
+  location                           = azurerm_resource_group.rg.location
+  resource_group_name                = azurerm_resource_group.rg.name
+  alert_email                        = var.alert_email
 }
 
 # -----------------------------
@@ -120,18 +152,18 @@ module "appgw_backend" {
   source = "./modules/appgw-backend-monitoring"
 
   law_id                           = azurerm_log_analytics_workspace.shared_law.id
-  appgw_name                       = var.appgw_name
-  appgw_vnet_name                  = var.appgw_vnet_name
-  appgw_subnet_name                = var.appgw_subnet_name
-  appgw_backend_subnet_name        = var.appgw_backend_subnet_name
-  appgw_nsg_name                   = var.appgw_nsg_name
-  appgw_pip_name                   = var.appgw_pip_name
-  appgw_backend_vm_name            = var.appgw_backend_vm_name
-  appgw_backend_vm_nic_name        = var.appgw_backend_vm_nic_name
-  appgw_action_group_name          = var.appgw_action_group_name
-  appgw_alert_name                 = var.appgw_alert_name
-  appgw_vm_size                    = var.appgw_vm_size
-  appgw_vm_admin_username          = var.appgw_vm_admin_username
+  appgw_name                       = local.appgw_name
+  appgw_vnet_name                  = local.appgw_vnet_name
+  appgw_subnet_name                = "appgw"
+  appgw_backend_subnet_name        = "backend"
+  appgw_nsg_name                   = local.appgw_nsg_name
+  appgw_pip_name                   = local.appgw_pip_name
+  appgw_backend_vm_name            = local.appgw_backend_vm_name
+  appgw_backend_vm_nic_name        = local.appgw_backend_vm_nic_name
+  appgw_action_group_name          = local.appgw_action_group_name
+  appgw_alert_name                 = local.appgw_alert_name
+  appgw_vm_size                    = var.vm_size
+  appgw_vm_admin_username          = var.vm_admin_username
   appgw_block_backend_health_probe = var.appgw_block_backend_health_probe
   location                         = azurerm_resource_group.rg.location
   resource_group_name              = azurerm_resource_group.rg.name
